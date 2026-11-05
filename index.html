@@ -1,0 +1,989 @@
+<!doctype html>
+<html lang="et">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}[hidden]{display:none!important}img{max-width:100%}</style>
+</head>
+<body>
+<title>Scatle</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600..800&family=Figtree:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: one centred column like a daily word game — header, photo, guess box, clue grid. */
+:root {
+  --bg: #f6f5f3;
+  --surface: #ffffff;
+  --fg: #1e1b18;
+  --muted: #6e6862;
+  --line: #d9d4ce;
+  --empty: #ebe7e2;
+  --brand: #6a4a2f;
+  --brand-fg: #ffffff;
+  --cocoa: #6a4a2f;
+  --cocoa-ink: #5a3d25;
+  --sand: #ead8b8;
+  --ok: #4e9748;
+  --near: #cf9f27;
+  --bad: #bb5240;
+  --tile-fg: #ffffff;
+  --shadow: 0 1px 2px rgba(40, 28, 18, .08), 0 6px 24px rgba(40, 28, 18, .06);
+  --display: "Bricolage Grotesque", "Arial Rounded MT Bold", "Helvetica Neue", Arial, sans-serif;
+  --body: "Figtree", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #131210; --surface: #1d1b19; --fg: #efebe6; --muted: #a39c94; --line: #36322e; --empty: #262320;
+    --brand: #c99d6f; --brand-fg: #1a140e; --ok: #4a8c44; --near: #bf9226; --bad: #b04b39; --tile-fg: #ffffff;
+    --cocoa: #875b39; --cocoa-ink: #4a3220; --sand: #dcc49c;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 6px 24px rgba(0,0,0,.3);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #131210; --surface: #1d1b19; --fg: #efebe6; --muted: #a39c94; --line: #36322e; --empty: #262320;
+  --brand: #c99d6f; --brand-fg: #1a140e; --ok: #4a8c44; --near: #bf9226; --bad: #b04b39; --tile-fg: #ffffff;
+  --cocoa: #875b39; --cocoa-ink: #4a3220; --sand: #dcc49c;
+  --shadow: 0 1px 2px rgba(0,0,0,.4), 0 6px 24px rgba(0,0,0,.3);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg);
+  font-family: var(--body); font-size: 15px; line-height: 1.45;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 0 40px;
+}
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--brand); outline-offset: 2px; border-radius: 6px; }
+
+.app { max-width: 560px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+
+/* Header */
+header {
+  display: grid; grid-template-columns: 44px 1fr 44px; align-items: center;
+  padding-block: 32px 10px; border-bottom: 1px solid var(--line);
+}
+.hbtns { display: flex; gap: 4px; }
+.hbtns.right { justify-content: flex-end; }
+.icon-btn {
+  width: 40px; height: 40px; border-radius: 10px; border: 0; background: transparent;
+  display: grid; place-items: center; cursor: pointer; color: var(--fg);
+}
+.icon-btn:hover { background: var(--empty); }
+.icon-btn svg { width: 22px; height: 22px; }
+.logo { display: flex; justify-content: center; gap: 3px; }
+.logo > span {
+  position: relative; width: 30px; height: 34px; display: grid; place-items: center;
+  font-family: var(--display); font-weight: 800; font-size: 21px; text-transform: uppercase;
+  border-radius: 5px; background: var(--cocoa); color: var(--sand);
+}
+.logo > span:nth-child(even) { background: var(--sand); color: var(--cocoa-ink); }
+.logo .poo {
+  position: absolute; left: 50%; bottom: calc(100% - 5px); width: 34px; height: auto;
+  transform: translateX(-50%) rotate(-4deg); filter: drop-shadow(0 1px 1px rgba(0,0,0,.25));
+}
+
+.modes {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; border-radius: 12px;
+  background: var(--empty); margin-top: -4px;
+}
+.modes button {
+  display: flex; align-items: center; justify-content: center; gap: 8px; height: 38px; border: 0; border-radius: 9px;
+  background: transparent; color: var(--muted); font-weight: 700; font-size: 14px; cursor: pointer;
+}
+.modes button[aria-pressed="true"] { background: var(--surface); color: var(--fg); box-shadow: var(--shadow); }
+.modes svg { width: 17px; height: 17px; }
+.flag { display: inline-flex; flex-direction: column; width: 20px; height: 13px; border-radius: 2px; overflow: hidden; box-shadow: 0 0 0 1px var(--line); }
+.flag i { flex: 1; }
+.flag i:nth-child(1) { background: #0072ce; }
+.flag i:nth-child(2) { background: #000000; }
+.flag i:nth-child(3) { background: #ffffff; }
+.sub { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.sub h1 {
+  margin: 0; font-family: var(--display); font-weight: 700; font-size: 22px; letter-spacing: -.01em;
+  text-wrap: balance;
+}
+.pill {
+  font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--muted); font-variant-numeric: tabular-nums;
+}
+.pill b { color: var(--fg); }
+
+/* Photo */
+.photo {
+  position: relative; aspect-ratio: 4 / 3; max-width: 100%; border-radius: 14px; overflow: hidden;
+  background: var(--empty); box-shadow: var(--shadow); cursor: zoom-in; border: 0; padding: 0; width: 100%;
+  display: block;
+}
+.photo .back { position: absolute; inset: -30px; width: calc(100% + 60px); height: calc(100% + 60px); max-width: none; object-fit: cover; filter: blur(22px) saturate(.9); opacity: .75; }
+.photo .front { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+.photo .zoom {
+  position: absolute; right: 10px; bottom: 10px; display: flex; align-items: center; gap: 6px;
+  background: rgba(20, 16, 12, .62); color: #fff; font-size: 12px; font-weight: 600;
+  padding: 5px 9px; border-radius: 999px;
+}
+.photo .zoom svg { width: 14px; height: 14px; }
+.credit { font-size: 11px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 10px; }
+.credit a { color: inherit; }
+
+/* Guess box */
+.guess { position: relative; display: flex; gap: 8px; }
+.guess input {
+  flex: 1; min-width: 0; height: 50px; padding: 0 16px; border-radius: 12px;
+  border: 2px solid var(--line); background: var(--surface); color: var(--fg);
+  font: 500 16px var(--body);
+}
+.guess input:focus { outline: none; border-color: var(--brand); }
+.guess input:disabled { opacity: .55; }
+.btn {
+  height: 50px; padding: 0 20px; border-radius: 12px; border: 0; cursor: pointer;
+  background: var(--brand); color: var(--brand-fg); font-weight: 700; font-size: 15px; letter-spacing: .02em;
+}
+.btn:disabled { opacity: .45; cursor: default; }
+.btn.ghost { background: transparent; color: var(--fg); border: 2px solid var(--line); }
+.sugg {
+  position: absolute; left: 0; right: 0; top: 56px; z-index: 20; margin: 0; padding: 6px; list-style: none;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow);
+  max-height: 300px; overflow-y: auto;
+}
+.sugg li {
+  display: flex; justify-content: space-between; gap: 12px; align-items: baseline;
+  padding: 9px 12px; border-radius: 8px; cursor: pointer;
+}
+.sugg li[aria-selected="true"], .sugg li:hover { background: var(--empty); }
+.sugg li i { color: var(--muted); font-size: 12px; }
+.sugg li.used { opacity: .4; cursor: default; }
+.sugg li mark { background: none; color: var(--brand); font-weight: 700; }
+
+/* Clue cards */
+.clues { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.clue {
+  text-align: left; border-radius: 12px; border: 2px dashed var(--line); background: transparent;
+  padding: 10px 12px; display: flex; gap: 10px; align-items: flex-start; min-height: 60px; cursor: default;
+}
+.clue svg { flex: none; width: 18px; height: 18px; margin-top: 1px; color: var(--muted); }
+.clue small { display: block; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.clue span { font-size: 13px; }
+.clue.ready { border-style: solid; border-color: var(--brand); cursor: pointer; }
+.clue.ready svg { color: var(--brand); }
+.clue.open { border-style: solid; background: var(--surface); grid-column: 1 / -1; cursor: default; }
+.clue.open svg { color: var(--brand); }
+
+/* Grid */
+.board { display: flex; flex-direction: column; gap: 10px; }
+.cols, .tiles { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 5px; }
+.cols span {
+  font-size: 10.5px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--muted);
+  text-align: center; border-bottom: 2px solid var(--line); padding-bottom: 4px;
+}
+.row { display: flex; flex-direction: column; gap: 4px; }
+.row .name { font-family: var(--display); font-weight: 700; font-size: 15px; display: flex; gap: 8px; align-items: baseline; }
+.row .name i { font-family: var(--body); font-weight: 400; font-style: italic; font-size: 12px; color: var(--muted); }
+.tile {
+  min-height: 58px; border-radius: 7px; display: grid; place-items: center; text-align: center;
+  padding: 4px 3px; font-size: 12px; font-weight: 700; line-height: 1.15; color: var(--tile-fg);
+  overflow-wrap: anywhere; hyphens: manual; perspective: 400px;
+}
+.tile.empty { background: transparent; border: 2px solid var(--empty); min-height: 46px; }
+.tile.ok { background: var(--ok); }
+.tile.near { background: var(--near); }
+.tile.bad { background: var(--bad); }
+.tile .arr { display: block; font-size: 16px; line-height: 1; margin-top: 2px; }
+.tile.flip { animation: flip .5s ease both; }
+@keyframes flip {
+  0% { transform: rotateX(90deg); opacity: .2; }
+  100% { transform: rotateX(0); opacity: 1; }
+}
+.tile.hop { animation: hop .4s ease both; }
+@keyframes hop { 40% { transform: translateY(-8px); } 100% { transform: none; } }
+.shake { animation: shake .4s; }
+@keyframes shake { 20%,60% { transform: translateX(-6px); } 40%,80% { transform: translateX(6px); } }
+
+/* Result */
+.result {
+  background: var(--surface); border-radius: 16px; box-shadow: var(--shadow); padding: 18px;
+  display: flex; flex-direction: column; gap: 12px;
+}
+.result .verdict { font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.result h2 { margin: 0; font-family: var(--display); font-size: 30px; font-weight: 800; line-height: 1.05; letter-spacing: -.02em; }
+.result h2 i { display: block; font-family: var(--body); font-size: 14px; font-weight: 400; color: var(--muted); letter-spacing: 0; margin-top: 4px; }
+.result p { margin: 0; max-width: 62ch; }
+.result .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.result .actions .btn { flex: 1 1 140px; }
+.next { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.next b { color: var(--fg); font-size: 15px; }
+
+footer { font-size: 12px; color: var(--muted); text-align: center; padding-top: 8px; }
+
+/* Toast */
+.toast {
+  position: fixed; left: 50%; top: calc(76px + env(safe-area-inset-top, 0px)); transform: translateX(-50%);
+  background: var(--fg); color: var(--bg); padding: 10px 16px; border-radius: 10px; font-weight: 700;
+  z-index: 60; pointer-events: none; transition: opacity .2s;
+}
+
+/* Dialogs */
+dialog {
+  border: 0; border-radius: 18px; padding: 0; width: min(480px, calc(100% - 32px)); max-height: calc(100% - 48px);
+  background: var(--surface); color: var(--fg); box-shadow: 0 20px 60px rgba(0,0,0,.35);
+}
+dialog::backdrop { background: rgba(15, 12, 9, .55); }
+.dlg { padding: 22px 22px 24px; display: flex; flex-direction: column; gap: 14px; }
+.dlg-head { display: flex; justify-content: space-between; align-items: center; }
+.dlg h3 { margin: 0; font-family: var(--display); font-size: 22px; font-weight: 800; }
+.dlg p, .dlg li { margin: 0; font-size: 14px; }
+.dlg ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; }
+.legend { display: grid; grid-template-columns: 34px 1fr; gap: 8px 10px; align-items: center; font-size: 14px; }
+.legend .tile { min-height: 30px; font-size: 14px; }
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; text-align: center; }
+.stats b { display: block; font-family: var(--display); font-size: 30px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.stats span { font-size: 11px; color: var(--muted); line-height: 1.2; display: block; }
+.dist { display: flex; flex-direction: column; gap: 5px; }
+.dist div { display: grid; grid-template-columns: 14px 1fr; gap: 8px; align-items: center; font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.dist em {
+  font-style: normal; background: var(--muted); color: var(--tile-fg); padding: 2px 8px; border-radius: 4px;
+  text-align: right; min-width: 26px; width: fit-content;
+}
+.dist em.cur { background: var(--ok); }
+.lightbox { width: min(1000px, calc(100% - 24px)); background: #0d0b09; }
+.lightbox img { display: block; width: 100%; max-height: calc(100vh - 120px); object-fit: contain; }
+.lightbox .icon-btn { position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,.55); color: #fff; }
+
+@media (max-width: 400px) {
+  .logo > span { width: 26px; height: 30px; font-size: 18px; }
+  .logo .poo { width: 29px; }
+  .tile { font-size: 10.5px; }
+  .cols span { font-size: 9.5px; letter-spacing: .04em; }
+}
+@media (min-width: 520px) {
+  .tile { font-size: 13px; min-height: 64px; }
+  .cols span { font-size: 11px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tile.flip, .tile.hop, .shake { animation: none; }
+}
+</style>
+
+<div class="app" id="app">
+  <header>
+    <div class="hbtns">
+      <button class="icon-btn" id="helpBtn" aria-label="Kuidas mängida">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9.5"/><path d="M9.3 9.2a2.8 2.8 0 0 1 5.4 1c0 1.9-2.7 2.5-2.7 4.1"/><circle cx="12" cy="17.6" r=".6" fill="currentColor"/></svg>
+      </button>
+    </div>
+    <div class="logo" aria-label="Scatle"><span><svg class="poo" viewBox="0 0 40 34" aria-hidden="true"><defs><linearGradient id="pooG" x1="0" y1="0" x2="0.3" y2="1"><stop offset="0" stop-color="#a5723f"/><stop offset=".55" stop-color="#7a5029"/><stop offset="1" stop-color="#55361c"/></linearGradient></defs><path fill="url(#pooG)" stroke="#3b2513" stroke-width="1.2" stroke-linejoin="round" d="M6 33C1.5 33 1 25 6.5 23.5C5 18 9 15.5 12 15.5C11 10.5 15 8 18.5 8C19.5 6 19.5 3.5 18 1.5C24 2.5 28 6.5 27 11C31 11.5 32.5 15 31 17C35.5 17.5 37 22 34 24C39 25 39 33 34 33Z"/><path d="M7.5 24.2C14 26.2 26 26.2 33.5 24.2M11.5 16.3C17 18 24 18 30.5 17M15 11.2C19 12.4 23 12.4 26.8 11.2" fill="none" stroke="#3b2513" stroke-width="1.1" stroke-linecap="round" opacity=".55"/><ellipse cx="12.5" cy="27.5" rx="3.2" ry="1.4" fill="#fff" opacity=".3"/><ellipse cx="16" cy="19.8" rx="2.5" ry="1.1" fill="#fff" opacity=".28"/><ellipse cx="19.5" cy="12.8" rx="1.9" ry=".9" fill="#fff" opacity=".28"/></svg>S</span><span>c</span><span>a</span><span>t</span><span>l</span><span>e</span></div>
+    <div class="hbtns right">
+      <button class="icon-btn" id="statsBtn" aria-label="Statistika">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 20V11M12 20V5M19 20v-6"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <div class="modes" role="group" aria-label="Loomade valik">
+    <button type="button" data-region="world" aria-pressed="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.7 3.8 5.7 3.8 9s-1.3 6.3-3.8 9c-2.5-2.7-3.8-5.7-3.8-9S9.5 5.7 12 3z"/></svg>Maailm</button>
+    <button type="button" data-region="ee" aria-pressed="false"><span class="flag" aria-hidden="true"><i></i><i></i><i></i></span>Eesti</button>
+  </div>
+
+  <div class="sub">
+    <h1 id="headline">Kelle oma see on?</h1>
+    <div class="pill" id="meta"></div>
+  </div>
+
+  <button class="photo" id="photo" aria-label="Ava foto suurelt">
+    <img class="back" id="photoBack" alt="">
+    <img class="front" id="photoImg" alt="Arvatava looma väljaheide">
+    <span class="zoom"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5M11 8.5v5M8.5 11h5"/></svg>Suurenda</span>
+  </button>
+
+  <form class="guess" id="guessForm" autocomplete="off">
+    <input id="guessInput" type="text" placeholder="Kirjuta looma nimi…" aria-label="Looma nimi" role="combobox" aria-expanded="false" aria-controls="sugg" aria-autocomplete="list" spellcheck="false">
+    <button class="btn" id="guessBtn" type="submit">Arva</button>
+    <ul class="sugg" id="sugg" role="listbox" hidden></ul>
+  </form>
+
+  <div class="clues" id="clues"></div>
+
+  <section class="board" aria-label="Katsed">
+    <div class="cols" aria-hidden="true"><span>Klass</span><span>Rühm</span><span>Toit</span><span>Mandrid</span><span>Kaal</span><span id="col6">Eestis</span></div>
+    <div id="rows" class="board"></div>
+  </section>
+
+  <section class="result" id="result" hidden></section>
+
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<dialog id="helpDlg">
+  <div class="dlg">
+    <div class="dlg-head"><h3>Kuidas mängida</h3><button class="icon-btn" data-close aria-label="Sulge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <p>Iga päev on uus foto päris väljaheitest. Arva <b>6 katsega</b>, mis looma oma see on.</p>
+    <ul>
+      <li>Iga katse järel näed, kui lähedal su loom vastusele on: klass, rühm (selts), toit, mandrid, kaal ja kas loom elab Eestis.</li>
+      <li>Kaalu nool näitab, kas õige loom on raskem (↑) või kergem (↓).</li>
+      <li>3 katse järel avaneb vihje ja 5 katse järel saad teada nime esimese tähe.</li>
+      <li><b>Maailm</b> on kõik loomad üle maailma. <b>Eesti</b> režiimis on ainult Eestis elavad loomad ning viimane veerg näitab hoopis elupaika (mets, raba, põld, talu, vesi, asula…). Kummalgi on oma päevamäng ja statistika.</li>
+    </ul>
+    <div class="legend">
+      <div class="tile ok">✓</div><div>Täpselt sama</div>
+      <div class="tile near">~</div><div>Lähedal: osaline kattuvus, suguluses rühm või kaal kuni 2,5 korda erinev</div>
+      <div class="tile bad">✕</div><div>Mööda</div>
+    </div>
+    <p style="color:var(--muted);font-size:13px">Mandrid: EU Euroopa, AS Aasia, AF Aafrika, PA Põhja-Ameerika, LA Lõuna-Ameerika, AU Austraalia. Koduloomad elavad kõikjal.</p>
+  </div>
+</dialog>
+
+<dialog id="statsDlg">
+  <div class="dlg">
+    <div class="dlg-head"><h3>Statistika</h3><button class="icon-btn" data-close aria-label="Sulge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <div class="stats" id="statsNums"></div>
+    <div class="pill">Katsete jaotus</div>
+    <div class="dist" id="dist"></div>
+  </div>
+</dialog>
+
+<dialog id="lightDlg" class="lightbox">
+  <img id="lightImg" alt="Väljaheide suurelt">
+  <button class="icon-btn" data-close aria-label="Sulge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+</dialog>
+
+<script>
+(() => {
+const SH = "­";
+const LOOD = "Loo" + SH + "du" + SH + "ses";
+const ALL = ["EU", "AS", "AF", "PA", "LA", "AU"];
+const DIET = { "Taimed": ["T"], "Liha": ["L"], "Sega": ["T", "L"], "Putukad": ["P"] };
+const GROUP = {
+  "Sõralised": "kabiloomad", "Kabjalised": "kabiloomad",
+  "Närilised": "glires", "Jäneselised": "glires",
+  "Kanalised": "kanahaned", "Hanelised": "kanahaned",
+  "Kiivilised": "silerinnalised", "Kasuaarilised": "silerinnalised"
+};
+
+// d = diet override set; m = native continents ("ALL" for domestic/cosmopolitan)
+const ANIMALS = [
+  { id: "poder", n: "Põder", lat: "Alces alces", k: "Imetaja", r: "Sõralised", t: "Taimed", m: ["EU","AS","PA"], w: 450, e: LOOD, img: "p3",
+    hint: "Ovaalsed 2–3 cm pabulad. Talvel on need kuivad ja meenutavad pressitud saepuru.",
+    fact: "Talvel sööb põder peamiselt oksi, võrseid ja koort, seepärast on tema talvised pabulad puitunud ja kuivad. Suvel on hunnik pehmem ja kokku kleepunud.",
+    cr: ["Magnefl", "CC BY-SA 4.0", "Alces alces-e.jpg"] },
+  { id: "metskits", n: "Metskits", lat: "Capreolus capreolus", k: "Imetaja", r: "Sõralised", t: "Taimed", m: ["EU","AS"], w: 25, e: LOOD, img: "p346",
+    hint: "Väikesed, umbes sentimeetrised läikivad pabulad, mõnikord ühest otsast teravad. Leitud männimetsast.",
+    fact: "Metskits on Eesti väikseim hirvlane. Ta sööb valikuliselt pungi, lehti ja ürte ning jätab pabulad väikese kuhjana sinna, kus parasjagu toitus.",
+    cr: ["Joymaster", "Avalik omand", "Powiat kościerski - Malary - 003.JPG"] },
+  { id: "mager", n: "Mäger", lat: "Meles meles", k: "Imetaja", r: "Kiskjalised", t: "Sega", d: ["T","L","P"], m: ["EU","AS"], w: 12, e: LOOD, img: "p14",
+    hint: "Omanik kaevab oma hunnikutele spetsiaalsed lohud, omamoodi välikäimlad.",
+    fact: "Mägrad teevad oma uru lähedale ja territooriumi piirile käimlaid: väikesed augud, mida kasutatakse korduvalt. Nii annavad nad naabritele teada, kelle maa see on.",
+    cr: ["JYB Devot", "CC BY-SA 4.0", "Bouxes P1013309mod.jpg"] },
+  { id: "karu", n: "Karu", lat: "Ursus sp.", k: "Imetaja", r: "Kiskjalised", t: "Sega", m: ["EU","AS","PA"], w: 250, e: LOOD, img: "p48",
+    hint: "Suur hunnik, mis on sügisel täis marjakoori ja seemneid.",
+    fact: "Enne talveund sööb karu tohutul hulgal marju. Siis on tema väljaheide täis seemneid ja võib olla peaaegu lilla.",
+    cr: ["NPS Photo", "Avalik omand", "Bear Scat (c5690988-28d4-4df0-bd40-cf6f52719229).jpeg"] },
+  { id: "lagle", n: "Kanada lagle", lat: "Branta canadensis", k: "Lind", r: "Hanelised", t: "Taimed", m: ["PA","EU"], w: 4, e: LOOD, img: "p56",
+    hint: "Rohekad sõrmejämedused vorstikesed pargi murul või järve ääres. Omanik sööb peamiselt rohtu.",
+    fact: "Kanada lagle on pärit Põhja-Ameerikast ja toodi Euroopasse inimese poolt. Linnaparkides on tema väljaheited muru peal sageli suurem mure kui lind ise.",
+    cr: ["Frank Vincentz", "CC BY-SA 3.0", "Bochum Langendreer - Ümminger See - Branta canadensis feces 03 ies.jpg"] },
+  { id: "kaamel", n: "Kaamel", lat: "Camelus dromedarius", k: "Imetaja", r: "Sõralised", t: "Taimed", m: ["AF","AS"], w: 500, e: "Ei", img: "p77",
+    hint: "Pabulad on nii kuivad, et neid saab peaaegu kohe kütteks kasutada. Omanik hoiab iga veetilga kokku.",
+    fact: "Kaamel imab soolest vett tagasi nii tõhusalt, et tema pabulad on kõrbes peaaegu kuivad. Nii elab ta päevi ilma joomata.",
+    cr: ["Frank Vincentz", "CC BY-SA 3.0", "Yaiza - PNT - LZ-67 - Echadero 04 ies.jpg"] },
+  { id: "kass", n: "Kass", lat: "Felis catus", k: "Imetaja", r: "Kiskjalised", t: "Liha", m: ALL, w: 4, e: "Kodus", img: "p90",
+    hint: "Omanik matab oma väljaheite tavaliselt liiva või mulla alla.",
+    fact: "Kassid kaevavad väljaheite maha, et oma lõhna varjata. Domineerivad isendid jätavad selle vahel meelega lahtiseks, et territooriumi märkida.",
+    cr: ["BrokenSphere", "CC BY-SA 3.0", "Fresh cat feces.JPG"] },
+  { id: "lehm", n: "Lehm", lat: "Bos taurus", k: "Imetaja", r: "Sõralised", t: "Taimed", m: ALL, w: 600, e: "Kodus", img: "p116",
+    hint: "Lai, lame ja pehme koogike, mida leiab karjamaalt.",
+    fact: "Lehm teeb päevas umbes 10–15 sellist kooki. Kuivatatud lehmasõnnik on paljudes maades siiani küttematerjal.",
+    cr: ["Judgefloro", "CC BY-SA 4.0", "9448jfConcepcion Dungan Ponds Tarlacfvf 08.JPG"] },
+  { id: "koer", n: "Koer", lat: "Canis familiaris", k: "Imetaja", r: "Kiskjalised", t: "Sega", m: ALL, w: 25, e: "Kodus", img: "p171",
+    hint: "Seda leiab kõige sagedamini linnatänavalt ja kõnniteelt.",
+    fact: "Eesti linnades peab koeraomanik oma lemmiku järelt koristama, muidu võib saada trahvi. Ühe keskmise koera väljaheiteid koguneb aastas üle 100 kilo.",
+    cr: ["Rkoblizek", "CC BY-SA 4.0", "Dog excrement under feet.jpg"] },
+  { id: "kaelkirjak", n: "Kaelkirjak", lat: "Giraffa camelopardalis", k: "Imetaja", r: "Sõralised", t: "Taimed", m: ["AF"], w: 1000, e: "Ei", img: "p211",
+    hint: "Pabulad kukuvad maha enam kui kahe meetri kõrguselt ja põrkavad laiali.",
+    fact: "Kuigi kaelkirjak kaalub üle tonni, on tema pabulad väiksed ja ümarad nagu kitsel. Kõrguse tõttu on need maas laiali pillatud.",
+    cr: ["Doulla 92", "CC BY-SA 4.0", "Crottes de Girafe.jpg"] },
+  { id: "kits", n: "Kits", lat: "Capra hircus", k: "Imetaja", r: "Sõralised", t: "Taimed", m: ALL, w: 40, e: "Kodus", img: "p223",
+    hint: "Kõvad läikivad pabulad, ühest otsast veidi teravamad. Neid on mööda aedikut laiali.",
+    fact: "Kitsed närivad lehti, oksi ja koort ning seedivad isegi väga kiulist toitu. Need pabulad on pärit kääbuskitsedelt.",
+    cr: ["3268zauber", "CC BY-SA 3.0", "Kot afrikanischer Zwergziegen.JPG"] },
+  { id: "janes", n: "Jänes", lat: "Lepus europaeus", k: "Imetaja", r: "Jäneselised", t: "Taimed", m: ["EU","AS"], w: 4, e: LOOD, img: "p252",
+    hint: "Ümarad, veidi lapikud kerakesed, mis on täis peeneks näritud taimekiudu.",
+    fact: "Jänesed söövad osa oma pehmetest väljaheidetest uuesti ära, et kätte saada esimesel korral seedimata jäänud toitained. Kõvad pabulad jäävad maha.",
+    cr: ["Juandev", "CC BY-SA 3.0", "Zaječí hovínka na Bousce.JPG"] },
+  { id: "hobune", n: "Hobune", lat: "Equus caballus", k: "Imetaja", r: "Kabjalised", t: "Taimed", m: ALL, w: 500, e: "Kodus", img: "p272",
+    hint: "Suured kollakaspruunid pallid, milles on näha seedimata kõrt.",
+    fact: "Hobune seedib toitu peamiselt jämesooles, seepärast on tema sõnnikus palju poolseeditud heina. Laagerdunult on see üks parimaid aiaväetisi.",
+    cr: ["Jebulon", "CC BY-SA 3.0", "Crottin.JPG"] },
+  { id: "elevant", n: "Elevant", lat: "Loxodonta africana", k: "Imetaja", r: "Londilised", t: "Taimed", m: ["AF"], w: 6000, e: "Ei", img: "p312",
+    hint: "Üks pall võib kaaluda üle kilo ja koosneb peaaegu ainult jämedast taimekiust.",
+    fact: "Elevant seedib vaid umbes 40% söödust. Tema väljaheites on nii palju kiudu, et sellest tehakse isegi paberit.",
+    cr: ["Alchemist-hp", "Free Art License", "Elephant feces in the wildlife.jpg"] },
+  { id: "rott", n: "Rott", lat: "Rattus norvegicus", k: "Imetaja", r: "Närilised", t: "Sega", m: ALL, w: 0.35, e: LOOD, img: "p332",
+    hint: "Tumedad, umbes 2 cm pikad kapslid. Neid leiab keldrist või prügikasti kõrvalt.",
+    fact: "Üks rott võib ühe ööga jätta maha mitukümmend pabulat. Kahjuritõrjujad tunnevad rotid ja hiired just pabulate suuruse järgi ära.",
+    cr: ["NY State IPM Program, Cornell University", "CC BY 2.0", "Norway Rat Droppings (9421750331).jpg"] },
+  { id: "lammas", n: "Lammas", lat: "Ovis aries", k: "Imetaja", r: "Sõralised", t: "Taimed", m: ALL, w: 70, e: "Kodus", img: "p350",
+    hint: "Väikesed ümarad pabulad, mis kleepuvad sageli üheks kobaraks.",
+    fact: "Lambad aitavad Eestis hoida rannaniite ja loopealseid lagedana. Ilma karjatamiseta kasvaksid need võssa.",
+    cr: ["Basotxerri", "CC BY-SA 4.0", "Entzia - Heces de oveja latxa 01.jpg"] },
+  { id: "rebane", n: "Rebane", lat: "Vulpes vulpes", k: "Imetaja", r: "Kiskjalised", t: "Sega", m: ["EU","AS","AF","PA"], w: 7, e: LOOD, img: "p401",
+    hint: "Keerdus ja teravaotsaline. Omanik jätab selle meelega kivi või kännu otsa.",
+    fact: "Rebane märgistab oma territooriumi, jättes väljaheite hästi nähtavasse kohta: kivile, mättale või raja keskele.",
+    cr: ["Gunnar Creutz", "CC BY-SA 4.0", "Rävspillning, Väsmestorps naturreservat 2023-05-03 (1973).jpg"] },
+  { id: "hunt", n: "Hunt", lat: "Canis lupus", k: "Imetaja", r: "Kiskjalised", t: "Liha", m: ["EU","AS","PA"], w: 40, e: LOOD, img: "p424",
+    hint: "Jäme ja täis karvu ning luutükke. Omanik ei raiska saagist midagi.",
+    fact: "Hundi väljaheide on tihti täis saaklooma karvu. Teadlased uurivad neid karvu, et teada saada, mida hundid söövad.",
+    cr: ["Bikerhiker75", "CC0", "Wolfslosung1.jpg"] },
+  { id: "vombat", n: "Vombat", lat: "Vombatus ursinus", k: "Imetaja", r: "Kukkurloomad", t: "Taimed", m: ["AU"], w: 30, e: "Ei", img: "p431",
+    hint: "Need on kuubikukujulised. Päriselt.",
+    fact: "Vombat on ainus teadaolev loom, kelle väljaheide on kuubikud. Kuju tekib soole lõpus, kus soolesein on eri kohtades erineva jäikusega.",
+    cr: ["SojournerRL", "CC0", "Wombat Faeces.jpg"] },
+  { id: "jakk", n: "Jakk", lat: "Bos grunniens", k: "Imetaja", r: "Sõralised", t: "Taimed", m: ["AS"], w: 500, e: "Ei", img: "p434",
+    hint: "Kõrgmägede elanikud kuivatavad neid kooke ja kasutavad kütteks.",
+    fact: "Tiibeti ja Nepali kõrgmägedes on jaki kuivatatud sõnnik tähtis kütus, sest seal puid peaaegu ei kasva.",
+    cr: ["Gerd Eichmann", "CC BY-SA 4.0", "Mustang-Lo Manthang to Tibetan border-32-Boden-Yakdung-2015-gje.jpg"] },
+  { id: "siil", n: "Siil", lat: "Erinaceus europaeus", k: "Imetaja", r: "Putuk" + SH + "toidulised", t: "Putukad", m: ["EU"], w: 0.9, e: LOOD, img: "p459",
+    hint: "Must läikiv vorstike, mille sees sätendavad mardikate kitiinitükid.",
+    fact: "Siil sööb ühe ööga kümneid mardikaid, usse ja tigusid. Mardikate kõvad kestad ei seedu ja jäävad väljaheites hästi näha.",
+    cr: ["Anneli Salo", "CC BY-SA 4.0", "Hedgehog (Erinaceus europaeus) feces - Siilin uloste C20170805 082336.jpg"] },
+  { id: "tiiger", n: "Tiiger", lat: "Panthera tigris", k: "Imetaja", r: "Kiskjalised", t: "Liha", m: ["AS"], w: 200, e: "Ei", img: "p379",
+    hint: "Täis karvu ja luid. Foto on tehtud ühel India kaitsealal.",
+    fact: "Tiigreid loendatakse ka väljaheidete DNA järgi. Nii saab teada, mitu looma piirkonnas elab, ilma et ühtegi neist nägema peaks.",
+    cr: ["PJeganathan", "CC BY-SA 4.0", "Tiger scan from Anamalai Tiger Reserve IMG 2013.jpg"] },
+  { id: "tsiivet", n: "Palmitsiivet", lat: "Paradoxurus hermaphroditus", k: "Imetaja", r: "Kiskjalised", t: "Sega", m: ["AS"], w: 3, e: "Ei", img: "p141",
+    hint: "Seest paistavad terved kohvioad.",
+    fact: "Nendest ubadest tehakse kopi luwak'i, ühte maailma kalleimat kohvi. Palmitsiivet sööb küpseid kohvimarju ja oad tulevad läbi seedimata.",
+    cr: ["T. R. Shankar Raman", "CC BY-SA 4.0", "Civet scat coffee IMG 20220108 102456.jpg"] },
+  { id: "kaljupyy", n: "Kaljupüü", lat: "Lagopus muta", k: "Lind", r: "Kanalised", t: "Taimed", m: ["EU","AS","PA"], w: 0.5, e: "Ei", img: "p295",
+    hint: "Leitud mägedest lume pealt. Omanik on lind, kelle sulestik muutub talveks valgeks.",
+    fact: "Talvel sööb kaljupüü pajude ja kaskede pungi ning oksi, seepärast on tema väljaheide täis puukiudu. Eestis elab tema sugulane rabapüü.",
+    cr: ["Hp.Baumeler", "CC BY-SA 4.0", "Simplonpass Juni 2021 (12).jpg"] },
+  { id: "saarmas", n: "Saarmas", lat: "Lutra lutra", k: "Imetaja", r: "Kiskjalised", t: "Liha", m: ["EU","AS","AF"], w: 8, e: LOOD, img: "p328",
+    hint: "Täis kalasoomuseid ja peeneid luid. Leitud jõe kaldalt.",
+    fact: "Saarma väljaheidet kutsutakse inglise keeles sõnaga spraint. Paljude arvates lõhnab see jasmiiniteena.",
+    cr: ["gailhampshire", "CC BY 2.0", "Otter spraint - Flickr - gailhampshire.jpg"] },
+  { id: "roovik", n: "Röövik", lat: "Lymantria dispar (tõuk)", k: "Putukas", r: "Liblikalised", t: "Taimed", m: ["EU","AS","AF","PA"], w: 0.001, e: LOOD, img: "p101",
+    hint: "Pisikesed soonilised tünnikesed puu all. Omanikust saab kunagi liblikas.",
+    fact: "Röövikute väljaheidet nimetatakse inglise keeles sõnaga frass. Kui seda sajab puult nagu peent vihma, on lehtedel palju röövikuid.",
+    cr: ["GeXeS", "CC BY-SA 4.0", "Lymantria dispar droppings.jpg"] },
+  { id: "agaam", n: "Habekagaam", lat: "Pogona vitticeps", k: "Roomaja", r: "Soomuselised", t: "Sega", d: ["T","P"], m: ["AU"], w: 0.4, e: "Ei", img: "p336",
+    hint: "Pruuni hunniku otsas on valge kriidine kork. Omanik ei pissi eraldi ja on pärit kõrbest.",
+    fact: "Roomajad väljutavad lämmastikujäägid tahke valge kusihappena koos väljaheitega. Nii kulub neil vett palju vähem.",
+    cr: ["Adrian J. Hunter", "CC BY-SA 4.0", "Bearded dragon feces.jpg"] },
+  { id: "punahirv", n: "Punahirv", lat: "Cervus elaphus", k: "Imetaja", r: "Sõralised", t: "Taimed", m: ["EU","AS","AF"], w: 200, e: LOOD, img: "p127",
+    hint: "Tumedad läikivad pabulad, suuremad kui metskitsel, aga väiksemad kui põdral.",
+    fact: "Punahirvi elab Eestis vaid väike asurkond, peamiselt saartel ja Lõuna-Eestis. Sügisel kõlab metsas isahirvede möirgamine.",
+    cr: ["Tylwyth Eldar", "CC BY-SA 4.0", "Domaniale de Coume de Lègue 19.jpg"] },
+  { id: "pampus", n: "Valgesaba-pampus", lat: "Odocoileus virginianus", k: "Imetaja", r: "Sõralised", t: "Taimed", m: ["PA","LA"], w: 70, e: "Ei", img: "p324",
+    hint: "Läikivad tumedad pabulad, foto on tehtud Kanadas. Omanik tõstab ohu korral saba ja näitab valget alakülge.",
+    fact: "Valgesaba-pampus on Ameerika levinuim hirvlane. Soomes elab neid sadu tuhandeid, sest 1930. aastatel toodi sinna mõni isend.",
+    cr: ["Ryan Hodnett", "CC BY-SA 4.0", "White-tailed Deer (Odocoileus virginianus) Feces - Bloomingdale, Ontario.jpg"] },
+  { id: "eesel", n: "Eesel", lat: "Equus asinus", k: "Imetaja", r: "Kabjalised", t: "Taimed", m: ALL, w: 250, e: "Kodus", img: "p176",
+    hint: "Hobusesõnniku moodi, aga kuivem ja väiksem. Omanik on pärit kõrbe äärealadelt.",
+    fact: "Eesel seedib kiulist ja kehva toitu paremini kui hobune, seepärast on tema sõnnik kuivem ja peenem.",
+    cr: ["Geoprofi Lars", "CC BY-SA 4.0", "2021-07-21 Tierpark Berlin 201.jpg"] },
+  { id: "piison", n: "Euroopa piison", lat: "Bison bonasus", k: "Imetaja", r: "Sõralised", t: "Taimed", m: ["EU"], w: 700, e: "Ei", img: "p407",
+    hint: "Suur pehme koogike nagu lehmal, aga leitud Poola metsast. Omanik on Euroopa raskeim maismaaloom.",
+    fact: "Euroopa piison suri looduses 1927. aastal välja. Kõik praegused piisonid pärinevad vähem kui 20 loomaaias elanud loomast.",
+    cr: ["Krzysztof Maria Różański", "CC BY 2.5", "Wisent feces-Skupowo-1.jpg"] },
+  { id: "kuulik", n: "Küülik", lat: "Oryctolagus cuniculus", k: "Imetaja", r: "Jäneselised", t: "Taimed", m: ["EU","AF","AU"], w: 2, e: "Kodus", img: "p483",
+    hint: "Kuivad ümarad herneterad rohu sees. Omanik elab urgudes suurte kolooniatena.",
+    fact: "Austraaliasse toodi 1859. aastal 24 küülikut. Mõnekümne aastaga oli neid seal sadu miljoneid.",
+    cr: ["PalaeoMal, cropped by Zanaq", "CC BY-SA 4.0", "Rabbit-droppings.png"] },
+  { id: "ilves", n: "Ilves", lat: "Lynx lynx", k: "Imetaja", r: "Kiskjalised", t: "Liha", m: ["EU","AS"], w: 20, e: LOOD, img: "n_ilves",
+    hint: "Karvane ja segmenteeritud, sageli kaabitud mulla või okaste alla. Omanik on Eesti ainus metsik kaslane.",
+    fact: "Ilves matab oma väljaheite sageli maha nagu kodukass. Eesti ilvese lemmiktoit on metskits ja jänes.",
+    cr: ["Jukka Wallin", "CC BY-SA 4.0", "Ilveksen uloste.jpg"] },
+  { id: "pesukaru", n: "Pesukaru", lat: "Procyon lotor", k: "Imetaja", r: "Kiskjalised", t: "Sega", m: ["PA"], w: 7, e: "Ei", img: "p489",
+    hint: "Tömbi otsaga ja täis marjaseemneid. Omanik on maskiga öine prügikastide rüüstaja.",
+    fact: "Pesukarud teevad ühiseid käimlaid, sageli puujuurte juurde või katustele. Nende väljaheites võib olla ohtlikke parasiite, seega ära puuduta.",
+    cr: ["Jomegat", "CC BY-SA 3.0", "Procyon lotor scat.jpg"] },
+  { id: "hyaan", n: "Täpiline hüään", lat: "Crocuta crocuta", k: "Imetaja", r: "Kiskjalised", t: "Liha", m: ["AF"], w: 60, e: "Ei", img: "p276",
+    hint: "Kuivades muutub see kriitvalgeks. Omanik sööb ka luid.",
+    fact: "Hüään seedib luid, nii et tema väljaheide on täis kaltsiumi ja muutub kuivades lumivalgeks.",
+    cr: ["Timothy A. Gonsalves", "CC BY-SA 4.0", "Scat Spotted Hyena Luangwa Jul23 A7C 05825.jpg"] },
+  { id: "nahkhiir", n: "Nahkhiir", lat: "Chiroptera", k: "Imetaja", r: "Käsitiivalised", t: "Putukad", m: ALL, w: 0.01, e: LOOD, img: "p29",
+    hint: "Kuiv puru, mida koguneb koopa põrandale meetrite kaupa. Seda müüakse väetiseks.",
+    fact: "Nahkhiire väljaheidet nimetatakse guaanoks. Sellest saadi kunagi püssirohu jaoks salpeetrit ja seda kasutatakse siiani väetisena.",
+    cr: ["Aphidwarrior", "CC BY-SA 4.0", "Raw-Bat-Guano.jpg"] },
+  { id: "kasuaar", n: "Kasuaar", lat: "Casuarius casuarius", k: "Lind", r: "Kasuaarilised", t: "Taimed", m: ["AU"], w: 45, e: "Ei", img: "p81",
+    hint: "Suur hunnik terveid vihmametsa vilju ja seemneid. Omanik on lennuvõimetu lind, kellel on tääkjas küünis.",
+    fact: "Kasuaar neelab vilju tervelt ja levitab nii seemneid. Mõned vihmametsa puud idanevad paremini, kui nende seemned on läbinud kasuaari soole.",
+    cr: ["Steve Fitzgerald", "CC BY-SA 4.0", "Cassowary dropping SF26129-01.jpg"] },
+  { id: "siga", n: "Siga", lat: "Sus domesticus", k: "Imetaja", r: "Sõralised", t: "Sega", m: ALL, w: 150, e: "Kodus", img: "n_siga",
+    hint: "Tumedad pehmed tükid laudapõhul. Omanik on talu suurim sööja, kes ei ütle millestki ära.",
+    fact: "Siga on kõigesööja nagu inimenegi ja tema seedimine sarnaneb meie omaga nii palju, et sigu kasutatakse meditsiiniuuringutes.",
+    cr: ["Fiver, der Hellseher", "CC BY-SA 4.0", "Kot Kune-Kune-Schwein (Tierpark Hellabrunn).jpg"] },
+  { id: "metssiga", n: "Metssiga", lat: "Sus scrofa", k: "Imetaja", r: "Sõralised", t: "Sega", m: ["EU","AS","AF"], w: 100, e: LOOD, img: "n_metssiga",
+    hint: "Tumedad tükilised pätsid lehtede vahel, metsas, kus maapind on üles songitud.",
+    fact: "Metssead songivad maad nagu adraga, otsides juuri, tõugusid ja tammetõrusid. Eestis on neid kümneid tuhandeid.",
+    cr: ["Gunnar Creutz", "CC BY-SA 4.0", "Vildsvinsspillning på Getaberget, Väsmestorps naturreservat 2022-01-18 (8864).jpg"] },
+  { id: "sebra", n: "Sebra", lat: "Equus quagga", k: "Imetaja", r: "Kabjalised", t: "Taimed", m: ["AF"], w: 300, e: "Ei", img: "n_sebra",
+    hint: "Nagu hobusesõnnik, aga omanik on triibuline ja elab Aafrika savannis.",
+    fact: "Sebrad söövad savannis kõige jämedamat rohtu. Pärast neid tulevad gnuud ja gasellid, kes söövad pehmemat taimestikku.",
+    cr: ["Jiří Sedláček (Frettie)", "CC BY-SA 3.0", "Droppings of Equus quagga chapmani in Liberec ZOO in Liberec, Liberec District.jpg"] },
+  { id: "ninasarvik", n: "Ninasarvik", lat: "Rhinocerotidae", k: "Imetaja", r: "Kabjalised", t: "Taimed", m: ["AF","AS"], w: 2300, e: "Ei", img: "n_ninasarvik",
+    hint: "Suured kiulised pätsid. Omanik kogub neid ühisesse hunnikusse, mis on nagu loomade teadetetahvel.",
+    fact: "Ninasarvikud teevad ühiseid sõnnikuhunnikuid, mis võivad olla mitu meetrit laiad. Lõhna järgi saavad nad teada, kes piirkonnas elab.",
+    cr: ["Fiver, der Hellseher", "CC BY-SA 4.0", "Nashorn-Kot (Zoo Leipzig).jpg"] },
+  { id: "tapiir", n: "Tapiir", lat: "Tapirus", k: "Imetaja", r: "Kabjalised", t: "Taimed", m: ["LA","AS"], w: 250, e: "Ei", img: "n_tapiir",
+    hint: "Suured kiulised pallid. Omanikul on lühike painduv kärss ja ta armastab vees istuda.",
+    fact: "Tapiirid käivad tihti vees ja teevad oma häda sinna. Nad on hobuste ja ninasarvikute sugulased.",
+    cr: ["Kulmalukko", "CC BY 3.0", "Tapirs feces in riga zoo.jpg"] },
+  { id: "kangur", n: "Känguru", lat: "Macropus", k: "Imetaja", r: "Kukkurloomad", t: "Taimed", m: ["AU"], w: 50, e: "Ei", img: "n_kangur",
+    hint: "Ovaalsed kuivad pabulad rohu sees. Omanik liigub hüpates ja kannab poega kõhutaskus.",
+    fact: "Känguru seedib rohtu mitmeosalises maos nagu lehm, aga eraldab palju vähem metaani.",
+    cr: ["4028mdk09", "CC BY-SA 3.0", "Kängurukot.JPG"] },
+  { id: "laama", n: "Laama", lat: "Lama glama", k: "Imetaja", r: "Sõralised", t: "Taimed", m: ["LA"], w: 150, e: "Ei", img: "n_laama",
+    hint: "Läikivad mustad pabulad. Omanik käib kogu karjaga ühes kohas, Andides kasutatakse seda kütteks.",
+    fact: "Laamad teevad oma häda ühisesse kohta, nii et karjamaa jääb muus osas puhtaks. Seepärast on neid kerge pidada.",
+    cr: ["Christophe Moustier", "Attribution", "Lama glama droppings.jpg"] },
+  { id: "simpans", n: "Šimpans", lat: "Pan troglodytes", k: "Imetaja", r: "Primaadid", t: "Sega", m: ["AF"], w: 50, e: "Ei", img: "n_simpans",
+    hint: "Kollakas ja täis puuviljakiudu. Leitud Tansaania rahvuspargist, kus uuris loomi Jane Goodall.",
+    fact: "Teadlased uurivad šimpanside väljaheiteid, et teada saada, mida nad söövad ja millised haigused neil on, ilma loomi segamata.",
+    cr: ["Ikiwaner", "GFDL 1.2", "Gombe Stream NP Exkrement.jpg"] },
+  { id: "orangutan", n: "Orangutan", lat: "Pongo", k: "Imetaja", r: "Primaadid", t: "Sega", d: ["T","P"], m: ["AS"], w: 60, e: "Ei", img: "n_orangutan",
+    hint: "Täis puuviljaseemneid ja vihmametsa lehti. Omanik on punakaspruun ja elab puude otsas.",
+    fact: "Orangutan levitab vihmametsas seemneid: paljud puud sõltuvad sellest, et ahv nende vilju sööb.",
+    cr: ["Cayce", "CC BY 2.0", "Orangutan poop.jpg"] },
+  { id: "magot", n: "Magot", lat: "Macaca sylvanus", k: "Imetaja", r: "Primaadid", t: "Sega", m: ["AF","EU"], w: 13, e: "Ei", img: "n_magot",
+    hint: "Omanik on ainus metsik ahv Euroopas, Gibraltari kaljul.",
+    fact: "Magotid elavad Marokos, Alžeerias ja Gibraltaril. Legendi järgi jääb Gibraltar Briti omaks seni, kuni seal elavad ahvid.",
+    cr: ["PooMuseum", "CC BY-SA 4.0", "Barbary Macaque (Macaca sylvanus) Poo.jpg"] },
+  { id: "jaaguar", n: "Jaaguar", lat: "Panthera onca", k: "Imetaja", r: "Kiskjalised", t: "Liha", m: ["LA"], w: 80, e: "Ei", img: "n_jaaguar",
+    hint: "Karvane ja luuline, leitud Lõuna-Ameerika metsarajalt. Omanik on täpiline kaslane, kes ujub hästi.",
+    fact: "Jaaguaril on kassidest kõige tugevam hammustus keha suuruse kohta. Ta murrab sellega isegi kilpkonna kilbi.",
+    cr: ["Emőke Dénes", "CC BY-SA 4.0", "Panthera onca feces.jpg"] },
+  { id: "kahrik", n: "Kährikkoer", lat: "Nyctereutes procyonoides", k: "Imetaja", r: "Kiskjalised", t: "Sega", m: ["AS","EU"], w: 6, e: LOOD, img: "n_kahrik",
+    hint: "Suur ühiskäimla metsa all: mitu looma käivad aastaid samas kohas.",
+    fact: "Kährikkoer on pärit Ida-Aasiast ja jõudis Eestisse eelmisel sajandil. Ta on ainus koerlane, kes jääb talveks unne.",
+    cr: ["Kk", "GFDL", "NyctereutesExcrements.jpg"] },
+  { id: "kivinugis", n: "Kivinugis", lat: "Martes foina", k: "Imetaja", r: "Kiskjalised", t: "Sega", m: ["EU","AS"], w: 1.7, e: LOOD, img: "n_kivinugis",
+    hint: "Keerdus vorstike pööningul või garaažis. Omanik närib vahel autojuhtmeid.",
+    fact: "Kivinugis elab meelsasti inimese lähedal ja võib närida auto kapoti all juhtmeid. Eestis on ta haruldane.",
+    cr: ["Llann Wé²", "CC BY-SA 4.0", "W3136 MartesFoina 200905 11157XA2 crop.jpg"] },
+  { id: "lendorav", n: "Lendorav", lat: "Pteromys volans", k: "Imetaja", r: "Närilised", t: "Taimed", m: ["EU","AS"], w: 0.13, e: LOOD, img: "n_lendorav",
+    hint: "Kollakad riisiterasuurused pabulad haava all. Omanik liugleb puult puule.",
+    fact: "Lendorava pabulad on kevadel kollased, sest ta sööb lepa- ja kasekasse. Eestis on lendorav looduskaitse all ning tema elupaiku otsitakse just pabulate järgi.",
+    cr: ["Ulvar Käärt", "CC BY-SA 4.0", "Lendorava pabulad.jpg"] },
+  { id: "okassiga", n: "Okassiga", lat: "Hystrix indica", k: "Imetaja", r: "Närilised", t: "Taimed", m: ["AS","AF"], w: 15, e: "Ei", img: "n_okassiga",
+    hint: "Kõvad pikergused pabulad, leitud Indiast. Omanikul on selg täis pikki teravaid okkaid.",
+    fact: "Okassiga on hoolimata nimest näriline, mitte siga ega siil. Okkaid ta loopida ei saa, aga need tulevad kergesti küljest.",
+    cr: ["Jenis Patel", "CC BY-SA 4.0", "Porcupine scat TN India.jpg"] },
+  { id: "kana", n: "Kana", lat: "Gallus gallus domesticus", k: "Lind", r: "Kanalised", t: "Sega", d: ["T","P"], m: ALL, w: 2, e: "Kodus", img: "n_kana",
+    hint: "Pruun keerd valge mütsiga. Valge osa on linnu kuseaine.",
+    fact: "Lindudel on üksainus ava, kloaak, kust tulevad nii väljaheide kui ka valge kusihape. Seepärast on linnu väljaheide kahevärviline.",
+    cr: ["AmbroseHem", "CC0", "Chicken-feces.jpg"] },
+  { id: "kajakas", n: "Kajakas", lat: "Larus", k: "Lind", r: "Kurvitsalised", t: "Sega", m: ALL, w: 1, e: LOOD, img: "n_kajakas",
+    hint: "Oranžikas pläts sadamas. Omanik varastab rannas friikartuleid.",
+    fact: "Kajakas sööb kala, krabisid ja prügi, nii et väljaheite värv sõltub sellest, mida ta viimati sõi.",
+    cr: ["4028mdk09", "CC BY-SA 3.0", "Möwenschiet 01.JPG"] },
+  { id: "paasuke", n: "Suitsupääsuke", lat: "Hirundo rustica", k: "Lind", r: "Värvulised", t: "Putukad", m: ALL, w: 0.02, e: LOOD, img: "n_paasuke",
+    hint: "Hunnik pisikesi tumedaid tükikesi otse pesa all lauda põrandal. Omanik on Eesti rahvuslind.",
+    fact: "Suitsupääsuke on Eesti rahvuslind. Poegade väljaheide on kilekotikeses (roojakotis), mille vanem pesast välja kannab.",
+    cr: ["Aschroet", "CC0", "Hirundo rustica rustica feces.jpg"] },
+  { id: "roherahn", n: "Roherähn", lat: "Picus viridis", k: "Lind", r: "Rähnilised", t: "Putukad", m: ["EU","AS"], w: 0.2, e: LOOD, img: "n_roherahn",
+    hint: "Hallikas silinder, mis on seest täis sipelgate kitiini. Omanik toksib puud, aga sööb maapinnalt.",
+    fact: "Roherähn sööb peamiselt sipelgaid, keda ta püüab kuni 10 cm pika kleepuva keelega. Tema väljaheide meenutab väikest tuhast sigaretti.",
+    cr: ["Bogbumper", "CC BY-SA 3.0", "Greenwoodpeckerdropping 3414.JPG"] },
+  { id: "teder", n: "Teder", lat: "Lyrurus tetrix", k: "Lind", r: "Kanalised", t: "Taimed", m: ["EU","AS"], w: 1.1, e: LOOD, img: "n_teder",
+    hint: "Kõverad kiulised pulgakesed, täis kasepungi. Omanik mängib kevadel rabas.",
+    fact: "Talvel sööb teder peaaegu ainult kasepungi ja -urbi. Kevaditi kogunevad kukepoisid rabadesse mängule.",
+    cr: ["Joonasl", "CC BY 2.0", "Black Grouse droppings.jpg"] },
+  { id: "laanepyy", n: "Laanepüü", lat: "Tetrastes bonasia", k: "Lind", r: "Kanalised", t: "Taimed", m: ["EU","AS"], w: 0.4, e: LOOD, img: "n_laanepyy",
+    hint: "Leitud Kõrvemaalt lumest. Omanik sukeldub talveööks lume sisse magama.",
+    fact: "Laanepüü kaevub külmal talveööl lumme. Lumeurgu jääb hommikuks väike hunnik väljaheiteid.",
+    cr: ["Sillerkiil", "CC0", "Hazel grouse snow cave and droppings (Kõrvemaa, Estonia, 2026).jpg"] },
+  { id: "paabulind", n: "Paabulind", lat: "Pavo cristatus", k: "Lind", r: "Kanalised", t: "Sega", d: ["T","P"], m: ["AS"], w: 5, e: "Ei", img: "n_paabulind",
+    hint: "Must keerd valge otsaga. Omanik on India rahvuslind ja tal on uhke sabavaru.",
+    fact: "Paabulinnu kuulus saba kuulub isaslinnule ja on tegelikult pikad seljasuled, mitte saba.",
+    cr: ["Prashanthns", "CC BY-SA 4.0", "Indian peafowl droppings .jpeg"] },
+  { id: "kiivi", n: "Kiivi", lat: "Apteryx", k: "Lind", r: "Kiivilised", t: "Sega", d: ["T","P"], m: ["AU"], w: 2.5, e: "Ei", img: "n_kiivi",
+    hint: "Leitud Uus-Meremaa metsast. Omanik ei lenda ja nuusutab usse noka otsas olevate ninasõõrmetega.",
+    fact: "Kiivi muna on emaslinnu keha suhtes üks suurimaid linnumaailmas, umbes viiendik tema kaalust.",
+    cr: ["vt Wikimedia Commons", "CC BY-SA 2.5", "Crotte de kiwi.jpg"] },
+  { id: "kilpkonn", n: "Sookilpkonn", lat: "Emys orbicularis", k: "Roomaja", r: "Kilpkonnad", t: "Liha", d: ["L","P"], m: ["EU","AS","AF"], w: 1, e: "Ei", img: "n_kilpkonn",
+    hint: "Rohekas lima tiigi ääres. Omanik kannab maja seljas.",
+    fact: "Sookilpkonn elas Eestis tuhandeid aastaid tagasi, kui kliima oli soojem. Praegu on lähimad asurkonnad Lätis ja Leedus.",
+    cr: ["M. Kutzli", "CC BY-SA 3.0", "Kot emys.jpg"] },
+  { id: "vihmauss", n: "Vihmauss", lat: "Lumbricus terrestris", k: "Rõngus" + SH + "uss", r: "Vihma" + SH + "ussid", t: "Taimed", m: ALL, w: 0.005, e: LOOD, img: "n_vihmauss",
+    hint: "Väikesed mullakeerud muru peal. Omanik kaevab maa all käike ja sööb mulda.",
+    fact: "Charles Darwin uuris vihmausse 40 aastat. Ta arvutas, et ussid toovad ühe põllu peale aastas tonne värsket mulda.",
+    cr: ["DEFI-Écologique", "CC BY-SA 4.0", "Turricule de ver de terre.jpg"] },
+  { id: "tuvi", n: "Tuvi", lat: "Columba livia", k: "Lind", r: "Tuvilised", t: "Taimed", m: ALL, w: 0.35, e: LOOD, img: "n_tuvi",
+    hint: "Tume keerd valge äärega linna kõnniteel, aknalaual või ausamba peas.",
+    fact: "Tuvi väljaheide sisaldab kusihapet, mis söövitab kivi ja värvi. Linnad kulutavad aastas palju raha, et seda kujudelt ja majadelt maha pesta.",
+    cr: ["puzzlement", "CC BY 2.0", "Pigeon poop", "https://www.flickr.com/photos/99735090@N00/2564459724"] }
+];
+// Elupaik (habitat) per animal, used as the last column in the Estonia mode
+const HAB = {
+  poder: ["Mets","Raba"], metskits: ["Mets","Põld"], mager: ["Mets"], karu: ["Mets","Raba"], lagle: ["Vesi","Põld"],
+  kaamel: ["Kõrb"], kass: ["Asula"], lehm: ["Talu","Põld"], koer: ["Asula"], kaelkirjak: ["Savann"], kits: ["Talu","Mäed"],
+  janes: ["Põld","Mets"], hobune: ["Talu","Põld"], elevant: ["Savann","Mets"], rott: ["Asula"], lammas: ["Talu","Põld"],
+  rebane: ["Mets","Põld"], hunt: ["Mets"], vombat: ["Mets"], jakk: ["Mäed"], siil: ["Asula","Mets"], tiiger: ["Mets"],
+  tsiivet: ["Mets"], kaljupyy: ["Mäed"], saarmas: ["Vesi"], roovik: ["Mets"], agaam: ["Kõrb"], punahirv: ["Mets","Põld"],
+  pampus: ["Mets","Põld"], eesel: ["Talu","Kõrb"], piison: ["Mets"], kuulik: ["Põld","Talu"], ilves: ["Mets"],
+  pesukaru: ["Mets","Asula"], hyaan: ["Savann"], nahkhiir: ["Mets","Asula"], kasuaar: ["Mets"], siga: ["Talu"],
+  metssiga: ["Mets","Põld"], sebra: ["Savann"], ninasarvik: ["Savann"], tapiir: ["Mets","Vesi"], kangur: ["Savann","Mets"],
+  laama: ["Mäed","Talu"], simpans: ["Mets","Savann"], orangutan: ["Mets"], magot: ["Mäed","Mets"], jaaguar: ["Mets","Vesi"],
+  kahrik: ["Mets","Vesi"], kivinugis: ["Asula","Mets"], lendorav: ["Mets"], okassiga: ["Mets","Põld"], kana: ["Talu"],
+  kajakas: ["Vesi","Asula"], paasuke: ["Talu","Põld"], roherahn: ["Mets","Põld"], teder: ["Raba","Mets"], laanepyy: ["Mets"],
+  paabulind: ["Mets","Talu"], kiivi: ["Mets"], kilpkonn: ["Vesi"], vihmauss: ["Põld","Mets"], tuvi: ["Asula"]
+};
+ANIMALS.forEach(a => { a.h = HAB[a.id] || ["Mets"]; });
+const BY_ID = Object.fromEntries(ANIMALS.map(a => [a.id, a]));
+const REGIONS = {
+  world: { name: "Maailm", ids: ANIMALS.map(a => a.id) },
+  ee: { name: "Eesti", ids: ANIMALS.filter(a => a.e !== "Ei").map(a => a.id) }
+};
+const MAX = 6;
+
+/* ---------- storage (best effort) ---------- */
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
+};
+
+/* ---------- daily puzzle ---------- */
+function rng(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function shuffled(list, seed) { const r = rng(seed), a = list.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+const ORDERS = {
+  world: ["vombat"].concat(shuffled(REGIONS.world.ids.filter(id => id !== "vombat"), 20261105)),
+  ee: ["lendorav"].concat(shuffled(REGIONS.ee.ids.filter(id => id !== "lendorav"), 372))
+};
+let REGION = store.get("scatle:v1:region", "world") === "ee" ? "ee" : "world";
+function dayNumber(d = new Date()) {
+  const start = Date.UTC(2026, 10, 5);
+  const today = Date.UTC(d.getFullYear(), d.getMonth(), d.getDate());
+  return Math.max(0, Math.round((today - start) / 86400000));
+}
+
+/* ---------- comparison ---------- */
+const dietOf = a => a.d || DIET[a.t];
+const overlap = (x, y) => x.some(v => y.includes(v));
+const same = (x, y) => x.length === y.length && x.every(v => y.includes(v));
+function fmtW(w) {
+  if (w < 0.01) return Math.round(w * 1000) + " g";
+  if (w < 1) return Math.round(w * 1000) + " g";
+  if (w >= 1000) return (w / 1000).toLocaleString("et-EE", { maximumFractionDigits: 1 }) + " t";
+  return w.toLocaleString("et-EE") + " kg";
+}
+function fmtM(m) { return m.length === ALL.length ? "Kõik" + SH + "jal" : m.join(" "); }
+function compare(g, t) {
+  const cls = g.k === t.k ? "ok" : "bad";
+  const grp = g.r === t.r ? "ok" : (GROUP[g.r] && GROUP[g.r] === GROUP[t.r] ? "near" : "bad");
+  const dg = dietOf(g), dt = dietOf(t);
+  const diet = same(dg, dt) ? "ok" : overlap(dg, dt) ? "near" : "bad";
+  const cont = same(g.m, t.m) ? "ok" : overlap(g.m, t.m) ? "near" : "bad";
+  const ratio = Math.max(g.w / t.w, t.w / g.w);
+  const wt = ratio <= 1.15 ? "ok" : ratio <= 2.5 ? "near" : "bad";
+  const arrow = wt === "ok" ? "" : (t.w > g.w ? "↑" : "↓");
+  const inEE = v => v !== "Ei";
+  const est = g.e === t.e ? "ok" : (inEE(g.e) && inEE(t.e) ? "near" : "bad");
+  const hab = same(g.h, t.h) ? "ok" : overlap(g.h, t.h) ? "near" : "bad";
+  const last = (S && S.region === "ee")
+    ? { label: "Elupaik", v: g.h.map(x => x === "Savann" ? "Sa" + SH + "vann" : x).join(" "), s: hab }
+    : { label: "Eestis", v: g.e, s: est };
+  return [
+    { label: "Klass", v: g.k, s: cls },
+    { label: "Rühm", v: g.r.replace("lised", SH + "lised").replace("loomad", SH + "loomad"), s: grp },
+    { label: "Toit", v: g.t, s: diet },
+    { label: "Mandrid", v: fmtM(g.m), s: cont },
+    { label: "Kaal", v: fmtW(g.w), s: wt, arrow },
+    last
+  ];
+}
+const WORD = { ok: "õige", near: "lähedal", bad: "mööda" };
+
+/* ---------- state ---------- */
+const $ = id => document.getElementById(id);
+let S; // { mode, day, target, guesses[], done, won, clues:[bool,bool] }
+
+const pre = r => r === "ee" ? "scatle:v1:ee:" : "scatle:v1:";
+function dailyKey(r, day) { return pre(r) + "day:" + day; }
+function loadDaily(r = REGION) {
+  const day = dayNumber();
+  const saved = store.get(dailyKey(r, day), null);
+  const order = ORDERS[r];
+  const target = order[day % order.length];
+  return Object.assign({ region: r, mode: "daily", day, target, guesses: [], done: false, won: false, clues: [false, false] }, saved && saved.target === target ? saved : {}, { region: r });
+}
+function newPractice() {
+  const order = ORDERS[S.region];
+  const daily = order[dayNumber() % order.length];
+  const pool = REGIONS[S.region].ids.filter(id => id !== daily && id !== S.target);
+  return { region: S.region, mode: "practice", day: dayNumber(), target: pool[Math.floor(Math.random() * pool.length)], guesses: [], done: false, won: false, clues: [false, false] };
+}
+function save() { if (S.mode === "daily") store.set(dailyKey(S.region, S.day), S); }
+
+function statsGet() { return store.get(pre(S.region) + "stats", { played: 0, wins: 0, streak: 0, best: 0, dist: [0,0,0,0,0,0], last: -1 }); }
+function recordResult() {
+  if (S.mode !== "daily") return;
+  const st = statsGet();
+  if (st.lastDay === S.day) return;
+  st.played++;
+  if (S.won) {
+    st.wins++; st.dist[S.guesses.length - 1]++;
+    st.streak = st.lastWinDay === S.day - 1 ? st.streak + 1 : 1;
+    st.best = Math.max(st.best, st.streak); st.lastWinDay = S.day;
+  } else st.streak = 0;
+  st.lastDay = S.day;
+  store.set(pre(S.region) + "stats", st);
+}
+
+/* ---------- render ---------- */
+function renderTop() {
+  const t = BY_ID[S.target];
+  const src = "img/" + t.img + ".jpg";
+  if ($("photoImg").getAttribute("src") !== src) { $("photoImg").src = src; $("photoBack").src = src; $("lightImg").src = src; }
+  document.querySelectorAll("[data-region]").forEach(b => b.setAttribute("aria-pressed", b.dataset.region === S.region));
+  $("col6").textContent = S.region === "ee" ? "Elupaik" : "Eestis";
+  $("meta").innerHTML = S.mode === "daily"
+    ? "Päev <b>#" + (S.day + 1) + "</b> · katse <b>" + Math.min(S.guesses.length + (S.done ? 0 : 1), MAX) + "/" + MAX + "</b>"
+    : "Harjutus · katse <b>" + Math.min(S.guesses.length + (S.done ? 0 : 1), MAX) + "/" + MAX + "</b>";
+  $("headline").textContent = S.done ? (S.won ? "Ära arvatud!" : "Seekord jäi saladuseks") : "Kelle oma see on?";
+  $("guessInput").disabled = S.done; $("guessBtn").disabled = S.done;
+  $("guessForm").hidden = S.done;
+}
+
+function renderClues() {
+  const t = BY_ID[S.target];
+  const wrong = S.guesses.filter(g => g !== S.target).length;
+  const letters = t.n.replace(/\s/g, "").length;
+  const defs = [
+    { at: 3, title: "Vihje", text: t.hint },
+    { at: 5, title: "Nimi", text: "Algab tähega „" + t.n[0] + "“ ja on " + letters + " tähte pikk." }
+  ];
+  const lock = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="5" y="11" width="14" height="9.5" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
+  const bulb = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.6 10.8c.7.6 1.1 1.3 1.1 2.2h5c0-.9.4-1.6 1.1-2.2A6 6 0 0 0 12 3z"/></svg>';
+  $("clues").innerHTML = defs.map((c, i) => {
+    const unlocked = wrong >= c.at || S.done;
+    const open = unlocked && (S.clues[i] || S.done);
+    if (open) return '<div class="clue open">' + bulb + '<div><small>' + c.title + '</small><span>' + c.text + '</span></div></div>';
+    if (unlocked) return '<button type="button" class="clue ready" data-clue="' + i + '">' + bulb + '<div><small>' + c.title + '</small><span>Vajuta, et näha</span></div></button>';
+    const left = c.at - wrong;
+    return '<div class="clue">' + lock + '<div><small>' + c.title + '</small><span>Avaneb ' + left + ' katse pärast</span></div></div>';
+  }).join("");
+}
+
+function tileHTML(c, i, animate) {
+  const cls = "tile " + c.s + (animate ? " flip" : "");
+  const delay = animate ? ' style="animation-delay:' + (i * 0.22) + 's"' : "";
+  return '<div class="' + cls + '"' + delay + ' aria-label="' + c.label + ": " + c.v.replace(/­/g, "") + ", " + WORD[c.s] + '">' +
+    '<span>' + c.v + (c.arrow ? '<span class="arr" aria-hidden="true">' + c.arrow + '</span>' : "") + '</span></div>';
+}
+function renderRows(animateLast) {
+  const t = BY_ID[S.target];
+  let html = "";
+  S.guesses.forEach((id, idx) => {
+    const g = BY_ID[id];
+    const anim = animateLast && idx === S.guesses.length - 1;
+    html += '<div class="row" data-i="' + idx + '"><div class="name">' + g.n + ' <i>' + g.lat + '</i></div><div class="tiles">' +
+      compare(g, t).map((c, i) => tileHTML(c, i, anim)).join("") + '</div></div>';
+  });
+  const remaining = S.done ? 0 : MAX - S.guesses.length;
+  for (let r = 0; r < remaining; r++) html += '<div class="row"><div class="tiles">' + '<div class="tile empty"></div>'.repeat(6) + '</div></div>';
+  $("rows").innerHTML = html;
+}
+
+function shareText() {
+  const t = BY_ID[S.target];
+  const head = "Scatle " + (S.region === "ee" ? "Eesti " : "") + (S.mode === "daily" ? "#" + (S.day + 1) : "harjutus") + " " + (S.won ? S.guesses.length : "X") + "/" + MAX;
+  const em = { ok: "🟩", near: "🟨", bad: "🟥" };
+  const lines = S.guesses.map(id => compare(BY_ID[id], t).map(c => c.label === "Kaal" && c.s !== "ok" ? (c.arrow === "↑" ? "⬆️" : "⬇️") : em[c.s]).join(""));
+  return head + "\n" + lines.join("\n");
+}
+
+let timer;
+function renderResult() {
+  const box = $("result");
+  if (!S.done) { box.hidden = true; return; }
+  const t = BY_ID[S.target];
+  box.hidden = false;
+  box.innerHTML =
+    '<div class="verdict">' + (S.won ? "Lahendatud " + S.guesses.length + "/" + MAX + " katsega" : "Kõik 6 katset läksid mööda") + '</div>' +
+    '<h2>' + t.n + '<i>' + t.lat + '</i></h2>' +
+    '<p>' + t.fact + '</p>' +
+    '<div class="actions">' +
+      '<button class="btn" id="shareBtn" type="button">Jaga tulemust</button>' +
+      (S.mode === "daily"
+        ? '<button class="btn ghost" id="practiceBtn" type="button">Harjuta veel</button>'
+        : '<button class="btn ghost" id="practiceBtn" type="button">Uus hunnik</button><button class="btn ghost" id="dailyBtn" type="button">Päevamäng</button>') +
+    '</div>' +
+    (S.mode === "daily" ? '<div class="next">Uus päevahunnik tuleb <b id="countdown">–</b> pärast</div>' : "") +
+    '<div class="credit">Foto: ' + t.cr[0] + " · " + t.cr[1] + ' · <a href="' + (t.cr[3] || "https://commons.wikimedia.org/wiki/File:" + encodeURIComponent(t.cr[2].replace(/ /g, "_"))) + '" target="_blank" rel="noopener">' + (t.cr[3] ? "Flickr" : "Wikimedia Commons") + '</a></div>';
+  $("shareBtn").onclick = share;
+  $("practiceBtn").onclick = () => { S = newPractice(); renderAll(); window.scrollTo({ top: 0, behavior: "smooth" }); };
+  if ($("dailyBtn")) $("dailyBtn").onclick = () => { S = loadDaily(); renderAll(); window.scrollTo({ top: 0, behavior: "smooth" }); };
+  clearInterval(timer);
+  if (S.mode === "daily") { tick(); timer = setInterval(tick, 1000); }
+}
+function tick() {
+  const el = $("countdown"); if (!el) return clearInterval(timer);
+  const now = new Date(), next = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+  const s = Math.max(0, Math.floor((next - now) / 1000));
+  const p = n => String(n).padStart(2, "0");
+  el.textContent = p(Math.floor(s / 3600)) + ":" + p(Math.floor(s / 60) % 60) + ":" + p(s % 60);
+  if (S.mode === "daily" && dayNumber() !== S.day) { S = loadDaily(); renderAll(); }
+}
+
+function renderAll(animateLast) { renderTop(); renderClues(); renderRows(animateLast); renderResult(); }
+
+/* ---------- actions ---------- */
+let toastT;
+function toast(msg, ms = 1800) {
+  const el = $("toast"); el.textContent = msg; el.hidden = false; el.style.opacity = 1;
+  clearTimeout(toastT); toastT = setTimeout(() => { el.style.opacity = 0; setTimeout(() => el.hidden = true, 200); }, ms);
+}
+async function share() {
+  const text = shareText();
+  try { await navigator.clipboard.writeText(text); toast("Tulemus kopeeritud"); }
+  catch {
+    const ta = document.createElement("textarea"); ta.value = text; ta.setAttribute("readonly", ""); ta.style.position = "fixed"; ta.style.opacity = "0";
+    document.body.appendChild(ta); ta.select();
+    let ok = false; try { ok = document.execCommand("copy"); } catch {}
+    ta.remove(); toast(ok ? "Tulemus kopeeritud" : "Kopeerimine ei õnnestunud");
+  }
+}
+const PRAISE = ["Geniaalne!", "Suurepärane!", "Muljetavaldav!", "Väga hea!", "Tubli!", "Uhh, napilt!"];
+
+function submitGuess(id) {
+  if (S.done) return;
+  const a = BY_ID[id];
+  if (!a) { shakeInput("Sellist looma pole nimekirjas"); return; }
+  if (S.guesses.includes(id)) { shakeInput("Seda looma juba pakkusid"); return; }
+  S.guesses.push(id);
+  if (id === S.target) { S.done = true; S.won = true; }
+  else if (S.guesses.length >= MAX) { S.done = true; S.won = false; }
+  $("guessInput").value = ""; closeSugg();
+  if (S.done) recordResult();
+  save();
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  // reveal the new row first, then the outcome
+  const wasDone = S.done; S.done = false; renderRows(true); renderTop(); S.done = wasDone;
+  const wait = reduce ? 0 : 6 * 220 + 400;
+  setTimeout(() => {
+    renderAll(false);
+    if (S.won) {
+      const last = $("rows").querySelector('.row[data-i="' + (S.guesses.length - 1) + '"]');
+      if (last && !reduce) last.querySelectorAll(".tile").forEach((t, i) => { t.style.animationDelay = (i * 0.08) + "s"; t.classList.add("hop"); });
+      toast(PRAISE[S.guesses.length - 1]);
+    } else if (S.done) toast("See oli " + BY_ID[S.target].n.toLowerCase(), 2600);
+    else if (!S.done) $("guessInput").focus({ preventScroll: true });
+  }, wait);
+}
+function shakeInput(msg) {
+  toast(msg);
+  const f = $("guessForm"); f.classList.remove("shake"); void f.offsetWidth; f.classList.add("shake");
+  setTimeout(() => f.classList.remove("shake"), 450);
+}
+
+/* ---------- autocomplete ---------- */
+const norm = s => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
+let matches = [], sel = 0;
+function filter(q) {
+  const n = norm(q);
+  if (!n) return [];
+  const starts = [], inner = [];
+  for (const a of REGIONS[S.region].ids.map(id => BY_ID[id]).sort((x, y) => x.n.localeCompare(y.n, "et"))) {
+    const name = norm(a.n), lat = norm(a.lat);
+    if (name.startsWith(n) || name.split(" ").some(w => w.startsWith(n))) starts.push(a);
+    else if (name.includes(n) || lat.includes(n)) inner.push(a);
+  }
+  return starts.concat(inner).slice(0, 8);
+}
+function hl(name, q) {
+  const n = norm(q), i = norm(name).indexOf(n);
+  return i < 0 ? name : name.slice(0, i) + "<mark>" + name.slice(i, i + n.length) + "</mark>" + name.slice(i + n.length);
+}
+function openSugg(q) {
+  matches = filter(q); sel = matches.findIndex(a => !S.guesses.includes(a.id));
+  const ul = $("sugg");
+  if (!matches.length) { closeSugg(); return; }
+  ul.innerHTML = matches.map((a, i) => '<li role="option" id="opt' + i + '" data-id="' + a.id + '" class="' + (S.guesses.includes(a.id) ? "used" : "") + '" aria-selected="' + (i === sel) + '"><span>' + hl(a.n, q) + '</span><i>' + a.lat + '</i></li>').join("");
+  ul.hidden = false; $("guessInput").setAttribute("aria-expanded", "true");
+  if (sel >= 0) $("guessInput").setAttribute("aria-activedescendant", "opt" + sel);
+}
+function closeSugg() { $("sugg").hidden = true; $("guessInput").setAttribute("aria-expanded", "false"); $("guessInput").removeAttribute("aria-activedescendant"); matches = []; }
+function moveSel(d) {
+  if (!matches.length) return;
+  let i = sel;
+  for (let k = 0; k < matches.length; k++) { i = (i + d + matches.length) % matches.length; if (!S.guesses.includes(matches[i].id)) break; }
+  sel = i;
+  [...$("sugg").children].forEach((li, j) => li.setAttribute("aria-selected", j === sel));
+  $("guessInput").setAttribute("aria-activedescendant", "opt" + sel);
+  $("sugg").children[sel]?.scrollIntoView({ block: "nearest" });
+}
+
+$("guessInput").addEventListener("input", e => openSugg(e.target.value));
+$("guessInput").addEventListener("focus", e => { if (e.target.value) openSugg(e.target.value); });
+$("guessInput").addEventListener("keydown", e => {
+  if (e.key === "ArrowDown") { e.preventDefault(); moveSel(1); }
+  else if (e.key === "ArrowUp") { e.preventDefault(); moveSel(-1); }
+  else if (e.key === "Escape") closeSugg();
+});
+$("sugg").addEventListener("mousedown", e => e.preventDefault());
+$("sugg").addEventListener("click", e => { const li = e.target.closest("li"); if (li && !li.classList.contains("used")) submitGuess(li.dataset.id); });
+document.addEventListener("click", e => { if (!e.target.closest(".guess")) closeSugg(); });
+$("guessForm").addEventListener("submit", e => {
+  e.preventDefault();
+  const q = $("guessInput").value;
+  if (!norm(q)) return;
+  const exact = ANIMALS.find(a => norm(a.n) === norm(q));
+  if (exact) return submitGuess(exact.id);
+  if (!matches.length) matches = filter(q);
+  const pick = matches[sel] && !S.guesses.includes(matches[sel].id) ? matches[sel] : matches.find(a => !S.guesses.includes(a.id));
+  if (pick) submitGuess(pick.id); else shakeInput(matches.length ? "Seda looma juba pakkusid" : "Sellist looma pole nimekirjas");
+});
+
+$("clues").addEventListener("click", e => {
+  const b = e.target.closest("[data-clue]"); if (!b) return;
+  S.clues[+b.dataset.clue] = true; save(); renderClues();
+});
+
+/* ---------- dialogs ---------- */
+function openDlg(d) { try { d.showModal(); } catch { d.setAttribute("open", ""); } }
+document.querySelectorAll("dialog").forEach(d => {
+  d.addEventListener("click", e => { if (e.target === d || e.target.closest("[data-close]")) d.close(); });
+});
+$("helpBtn").onclick = () => openDlg($("helpDlg"));
+$("photo").onclick = () => openDlg($("lightDlg"));
+$("statsBtn").onclick = () => {
+  const st = statsGet();
+  const pct = st.played ? Math.round(st.wins / st.played * 100) : 0;
+  $("statsNums").innerHTML = [[st.played, "Mängitud"], [pct, "Võidu %"], [st.streak, "Järjest"], [st.best, "Parim seeria"]]
+    .map(([v, l]) => "<div><b>" + v + "</b><span>" + l + "</span></div>").join("");
+  const mx = Math.max(1, ...st.dist);
+  const cur = S.mode === "daily" && S.done && S.won ? S.guesses.length - 1 : -1;
+  $("dist").innerHTML = st.dist.map((n, i) => '<div><span>' + (i + 1) + '</span><em class="' + (i === cur ? "cur" : "") + '" style="width:' + Math.max(8, n / mx * 100) + '%">' + n + "</em></div>").join("");
+  openDlg($("statsDlg"));
+};
+
+/* ---------- boot ---------- */
+function setRegion(r) {
+  if (r === S.region) return;
+  REGION = r; store.set("scatle:v1:region", r);
+  closeSugg(); $("guessInput").value = "";
+  S = loadDaily(r); renderAll(false);
+  toast(r === "ee" ? "Eesti loomad: " + REGIONS.ee.ids.length : "Kogu maailm: " + REGIONS.world.ids.length + " looma");
+}
+document.querySelectorAll("[data-region]").forEach(b => b.addEventListener("click", () => setRegion(b.dataset.region)));
+function start(data) {
+  S = data && data.S && BY_ID[data.S.target] ? data.S : loadDaily();
+  if (!S.region) S.region = "world";
+  REGION = S.region;
+  renderAll(false);
+  if (!store.get("scatle:v1:seenHelp", false)) { store.set("scatle:v1:seenHelp", true); setTimeout(() => openDlg($("helpDlg")), 400); }
+}
+window.claude?.hot?.snapshot?.(() => ({ S }));
+window.claude?.hot?.ready ? window.claude.hot.ready(start) : start(window.claude?.hot?.data ?? {});
+})();
+</script>
+
+</body>
+</html>
